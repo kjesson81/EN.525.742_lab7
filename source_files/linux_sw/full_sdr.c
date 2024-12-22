@@ -37,9 +37,8 @@
 // global variables to track frequency value;
 float GlobalFrequency;
 float GlobalTuneFrequency;
-uint32_t *testData;
+int32_t *testData;
 
-// uint32_t packet_data[PACKET_BYTE_SIZE];
 int volumeLevel = 5;
 
 volatile unsigned int *get_a_pointer(unsigned int phys_addr);
@@ -50,11 +49,11 @@ void print_benchmark(volatile unsigned int *periph_base);
 void userMenu(volatile unsigned int *ptrToRadio, volatile unsigned int *ptrToFIFO);
 uint32_t readClockCount(volatile unsigned int *ptrToRadio);
 uint32_t getRdCnt(volatile unsigned int *ptrToFIFO);
-uint32_t getData(volatile unsigned int *ptrToFIFO);
+int32_t getData(volatile unsigned int *ptrToFIFO);
 void packetFifoBenchmark(volatile unsigned int *ptrToFIFO, volatile unsigned int *ptrToRadio, int sampleSize);
 void packetMode(volatile unsigned int *ptrToFIFO, char *ipAddr, int portNum);
 int isKeyPressed();
-uint32_t *readColumnAsUint32(const char *filename, size_t *countOut);
+int32_t *readColumnAsUint32(const char *filename, size_t *countOut);
 void configure_codec_volume(int volume);
 
 int main()
@@ -301,7 +300,7 @@ uint32_t readClockCount(volatile unsigned int *ptrToRadio)
 
 void packetFifoBenchmark(volatile unsigned int *ptrToFIFO, volatile unsigned int *ptrToRadio, int sampleSize)
 {
-    uint32_t packet_data_storage[sampleSize];
+    int32_t packet_data_storage[sampleSize];
     int prev_value = -1;
     int i = 0;
     unsigned int start_time;
@@ -327,7 +326,7 @@ void packetFifoBenchmark(volatile unsigned int *ptrToFIFO, volatile unsigned int
     printf("%d samples of data in approximately %f seconds\n", sampleSize, time_spent);
 };
 
-uint32_t getData(volatile unsigned int *ptrToFIFO)
+int32_t getData(volatile unsigned int *ptrToFIFO)
 {
     return *(ptrToFIFO + ETH_DATA_OFFSET);
 };
@@ -342,7 +341,7 @@ void packetMode(volatile unsigned int *ptrToFIFO, char *ipAddr, int portNum)
     // volatile unsigned int *fifo_periph = get_a_pointer(ETH_FIFO_ADDR);
 
     uint8_t packet_data[PACKET_SIZE]; // minus 2 to fit header
-    uint32_t prev_value = 0;
+    int32_t prev_value = 0;
     uint16_t packet_counter = 0;
     int i = 0;
     int j = 0;
@@ -377,7 +376,7 @@ void packetMode(volatile unsigned int *ptrToFIFO, char *ipAddr, int portNum)
         {
             if (getRdCnt(ptrToFIFO) > 0)
             {
-                uint32_t new_value = getData(ptrToFIFO); // Get the new value
+                int32_t new_value = getData(ptrToFIFO); // Get the new value
                 if (new_value != prev_value)
                 {
                     // Populate the data starting after the packet counter
@@ -385,17 +384,18 @@ void packetMode(volatile unsigned int *ptrToFIFO, char *ipAddr, int portNum)
                     // packet_data[(i * 4) + 3] = 0x22; //(new_value >> 8) & 0xFF;
                     // packet_data[(i * 4) + 4] = 0x33; //(new_value >> 16) & 0xFF;
                     // packet_data[(i * 4) + 5] = 0x44; //(new_value >> 24) & 0xFF;
+
                     // printf("new value is :  0x%08X\n\r",new_value);
 
-                    // packet_data[(i * 4) + 2] = (new_value) & 0xFF;
-                    // packet_data[(i * 4) + 3] = (new_value >> 8) & 0xFF;
-                    // packet_data[(i * 4) + 4] = (new_value >> 16) & 0xFF;
-                    // packet_data[(i * 4) + 5] = (new_value >> 24) & 0xFF;
+                    packet_data[(i * 4) + 2] = (new_value) & 0xFF;
+                    packet_data[(i * 4) + 3] = (new_value >> 8) & 0xFF;
+                    packet_data[(i * 4) + 4] = (new_value >> 16) & 0xFF;
+                    packet_data[(i * 4) + 5] = (new_value >> 24) & 0xFF;
 
-                    packet_data[(i * 4) + 2] = (testData[j]) & 0xFF;       // (new_value) & 0xFF;
-                    packet_data[(i * 4) + 3] = (testData[j] >> 8) & 0xFF;  // (new_value >> 8) & 0xFF;
-                    packet_data[(i * 4) + 4] = (testData[j] >> 16) & 0xFF; // (new_value >> 16) & 0xFF;
-                    packet_data[(i * 4) + 5] = (testData[j] >> 24) & 0xFF; // (new_value >> 24) & 0xFF;
+                    // packet_data[(i * 4) + 2] = (testData[j]) & 0xFF;       // (new_value) & 0xFF;
+                    // packet_data[(i * 4) + 3] = (testData[j] >> 8) & 0xFF;  // (new_value >> 8) & 0xFF;
+                    // packet_data[(i * 4) + 4] = (testData[j] >> 16) & 0xFF; // (new_value >> 16) & 0xFF;
+                    // packet_data[(i * 4) + 5] = (testData[j] >> 24) & 0xFF; // (new_value >> 24) & 0xFF;
 
                     prev_value = new_value; // Update the previous value
                     i++;
@@ -430,7 +430,7 @@ int isKeyPressed()
     return select(STDIN_FILENO + 1, &readfds, NULL, NULL, &tv) > 0;
 }
 
-uint32_t *readColumnAsUint32(const char *filename, size_t *countOut)
+int32_t *readColumnAsUint32(const char *filename, size_t *countOut)
 {
     FILE *file = fopen(filename, "r");
     if (!file)
@@ -441,7 +441,7 @@ uint32_t *readColumnAsUint32(const char *filename, size_t *countOut)
 
     size_t capacity = 0;
     size_t count = 0;
-    uint32_t *array = NULL;
+    int32_t *array = NULL;
     char line[256];
 
     while (fgets(line, sizeof(line), file))
@@ -451,14 +451,14 @@ uint32_t *readColumnAsUint32(const char *filename, size_t *countOut)
         {
             // Remove trailing newline
             token[strcspn(token, "\r\n")] = '\0';
-            // Convert the token to uint32_t (hex)
-            uint32_t value = (uint32_t)strtoul(token, NULL, 16);
+            // Convert the token to int32_t (hex)
+            int32_t value = (int32_t)strtoul(token, NULL, 16);
 
             // Resize array if needed
             if (count >= capacity)
             {
                 size_t newCap = capacity ? capacity * 2 : 8;
-                uint32_t *temp = realloc(array, newCap * sizeof(uint32_t));
+                int32_t *temp = realloc(array, newCap * sizeof(int32_t));
                 if (!temp)
                 {
                     perror("Memory error");
