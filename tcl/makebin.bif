@@ -1,0 +1,4 @@
+all:
+{
+	../vivado/full_sdr/full_sdr.runs/impl_1/lab7_top.bit
+}s

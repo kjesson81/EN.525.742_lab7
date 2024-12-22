@@ -1,0 +1,10 @@
+*.bin
+vivado/*
+*vivado*
+fpga_files/*
+
+*.log
+*.bit
+*.bin
+*.bit.bin
+*.o
