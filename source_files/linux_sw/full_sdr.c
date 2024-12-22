@@ -52,7 +52,6 @@ uint32_t readClockCount(volatile unsigned int *ptrToRadio);
 uint32_t getRdCnt(volatile unsigned int *ptrToFIFO);
 uint32_t getData(volatile unsigned int *ptrToFIFO);
 void packetFifoBenchmark(volatile unsigned int *ptrToFIFO, volatile unsigned int *ptrToRadio, int sampleSize);
-// void getPacketData(volatile unsigned int *ptrToFIFO, volatile unsigned int *ptrToINTC);
 void packetMode(volatile unsigned int *ptrToFIFO, char *ipAddr, int portNum);
 int isKeyPressed();
 uint32_t *readColumnAsUint32(const char *filename, size_t *countOut);
@@ -166,9 +165,9 @@ void userMenu(volatile unsigned int *ptrToRadio, volatile unsigned int *ptrToFIF
         printf("\n\r    - Press U/u to increase frequency by 1000Hz/100Hz");
         printf("\n\r    - Press D/d to decrease frequency by 1000Hz/100Hz");
         printf("\n\r    - Press R/r to reset phase");
-        // printf("\n\r    - Press +/- to increase/decrease volume");
+        printf("\n\r    - Press +/- to increase/decrease volume");
         printf("\n\r    - Press C/c to read the clock counts");
-        printf("\n\r    - Press P/p to read the packet data");
+        printf("\n\r    - Press P/p to stream the packet data over ethernet. You will chosose IP address and port to send to.\n\rNote: This is configured for the default provided collect_data_complex.m script\n\r");
         printf("\n\r    - Press Q/q to read the packet data count");
         printf("\n\r    - Press B/b to benchmark 480,000 packet samples\n\r\n\r");
         char option[BUFFER_SIZE];
@@ -263,11 +262,26 @@ void userMenu(volatile unsigned int *ptrToRadio, volatile unsigned int *ptrToFIF
             }
             else if ((*option == 'P') || (*option == 'p'))
             {
-                packetMode(ptrToFIFO, "192.168.196.127", 25344);
+
+                printf("Please enter the IP address to send ethernet data to: ");
+                char ip_addr[BUFFER_SIZE];
+                scanf("%49s", ip_addr);
+                printf("\n\r");
+
+                printf("Please enter the port you want to connect to: ");
+                char userInput[BUFFER_SIZE];
+                scanf("%49s", userInput);
+                printf("\n\r");
+                int selectedPort = atoi(userInput);
+
+                printf("Sending UDP ethernet data to IP address %s, port %d\n\r", ip_addr, selectedPort);
+                printf("Hit any key to stop.\n\r");
+
+                packetMode(ptrToFIFO, ip_addr, selectedPort); //"192.168.196.127"
             }
             else if ((*option == 'Q') || (*option == 'q'))
             {
-                printf("Current packet data count is :  %" PRIu32 "\n\r", getRdCnt(ptrToFIFO)); // getPacketDataCount());
+                printf("Current packet data count is :  %" PRIu32 "\n\r", getRdCnt(ptrToFIFO));
             }
             else if ((*option == 'B') || (*option == 'b'))
             {
@@ -284,37 +298,6 @@ uint32_t readClockCount(volatile unsigned int *ptrToRadio)
     uint32_t value = *(ptrToRadio + SDR_TIMER_REG_OFFSET);
     return value;
 }
-
-// void getPacketData(volatile unsigned int *ptrToFIFO, volatile unsigned int *ptrToINTC)
-// {
-//     int prev_value = -1;
-//     uint32_t samples = getRdCnt(ptrToFIFO);
-
-//     // wait until enough samples
-//     while (PACKET_BYTE_SIZE > samples)
-//     {
-//         samples = getRdCnt(ptrToFIFO);
-//     }
-//     for (int i = 0; i < PACKET_BYTE_SIZE; i++)
-//     {
-//         int new_value = getData(ptrToFIFO); // Get the new value
-//         if (new_value != prev_value)
-//         {                               // Compare with the previous value
-//             packet_data[i] = new_value; // Store it if different
-//             prev_value = new_value;     // Update the previous value
-//         }
-//         else
-//         {
-//             i--; // Retry the same index for the next unique value
-//         }
-//     }
-
-//     // read back the data
-//     for (int j = 0; j < PACKET_BYTE_SIZE; j++)
-//     {
-//         printf("0x%X\n\r", packet_data[j]);
-//     }
-// };
 
 void packetFifoBenchmark(volatile unsigned int *ptrToFIFO, volatile unsigned int *ptrToRadio, int sampleSize)
 {
@@ -416,7 +399,7 @@ void packetMode(volatile unsigned int *ptrToFIFO, char *ipAddr, int portNum)
 
                     prev_value = new_value; // Update the previous value
                     i++;
-                    if (j >= 62130)  // this is where samples repeat again
+                    if (j >= 62130) // this is where samples repeat again
                     {
                         j = 0;
                     }
@@ -578,5 +561,4 @@ void configure_codec_volume(int volume)
 
     i2c_write_reg("/dev/i2c-0", 0x1A, 0x04, codecVolume);
     i2c_write_reg("/dev/i2c-0", 0x1A, 0x06, codecVolume);
-
 }
