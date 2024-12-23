@@ -53,7 +53,6 @@ int32_t getData(volatile unsigned int *ptrToFIFO);
 void packetFifoBenchmark(volatile unsigned int *ptrToFIFO, volatile unsigned int *ptrToRadio, int sampleSize);
 void packetMode(volatile unsigned int *ptrToFIFO, char *ipAddr, int portNum);
 int isKeyPressed();
-int32_t *readColumnAsUint32(const char *filename, size_t *countOut);
 void configure_codec_volume(int volume);
 
 int main()
@@ -62,13 +61,6 @@ int main()
     // first, get a pointer to the peripheral base address using /dev/mem and the function mmap
     volatile unsigned int *sdr_periph = get_a_pointer(SDR_PERIPH_ADDRESS);
     volatile unsigned int *fifo_periph = get_a_pointer(ETH_FIFO_ADDR);
-
-    size_t count = 0;
-    testData = readColumnAsUint32("./ila_fir_data.csv", &count);
-    if (!testData)
-    {
-        return 1;
-    }
 
     printf("\r\n\r\n\r\nLab 7 Kai Jesson - Full SDR with Ethernet Streaming\n\r");
 
@@ -166,7 +158,7 @@ void userMenu(volatile unsigned int *ptrToRadio, volatile unsigned int *ptrToFIF
         printf("\n\r    - Press R/r to reset phase");
         printf("\n\r    - Press +/- to increase/decrease volume");
         printf("\n\r    - Press C/c to read the clock counts");
-        printf("\n\r    - Press P/p to stream the packet data over ethernet. You will chosose IP address and port to send to.\n\rNote: This is configured for the default provided collect_data_complex.m script\n\r");
+        printf("\n\r    - Press P/p to stream the packet data over ethernet. You will chosose IP address and port to send to.\n\rNote: This is configured for the default provided collect_data_complex.m script");
         printf("\n\r    - Press Q/q to read the packet data count");
         printf("\n\r    - Press B/b to benchmark 480,000 packet samples\n\r\n\r");
         char option[BUFFER_SIZE];
@@ -344,7 +336,6 @@ void packetMode(volatile unsigned int *ptrToFIFO, char *ipAddr, int portNum)
     int32_t prev_value = 0;
     uint16_t packet_counter = 0;
     int i = 0;
-    int j = 0;
 
     int sockfd, n;
     struct sockaddr_in servaddr;
@@ -379,34 +370,13 @@ void packetMode(volatile unsigned int *ptrToFIFO, char *ipAddr, int portNum)
                 int32_t new_value = getData(ptrToFIFO); // Get the new value
                 if (new_value != prev_value)
                 {
-                    // Populate the data starting after the packet counter
-                    // packet_data[(i * 4) + 2] = 0x11; //(new_value) & 0xFF;
-                    // packet_data[(i * 4) + 3] = 0x22; //(new_value >> 8) & 0xFF;
-                    // packet_data[(i * 4) + 4] = 0x33; //(new_value >> 16) & 0xFF;
-                    // packet_data[(i * 4) + 5] = 0x44; //(new_value >> 24) & 0xFF;
-
-                    // printf("new value is :  0x%08X\n\r",new_value);
-
                     packet_data[(i * 4) + 2] = (new_value) & 0xFF;
                     packet_data[(i * 4) + 3] = (new_value >> 8) & 0xFF;
                     packet_data[(i * 4) + 4] = (new_value >> 16) & 0xFF;
                     packet_data[(i * 4) + 5] = (new_value >> 24) & 0xFF;
 
-                    // packet_data[(i * 4) + 2] = (testData[j]) & 0xFF;       // (new_value) & 0xFF;
-                    // packet_data[(i * 4) + 3] = (testData[j] >> 8) & 0xFF;  // (new_value >> 8) & 0xFF;
-                    // packet_data[(i * 4) + 4] = (testData[j] >> 16) & 0xFF; // (new_value >> 16) & 0xFF;
-                    // packet_data[(i * 4) + 5] = (testData[j] >> 24) & 0xFF; // (new_value >> 24) & 0xFF;
-
                     prev_value = new_value; // Update the previous value
                     i++;
-                    if (j >= 62130) // this is where samples repeat again
-                    {
-                        j = 0;
-                    }
-                    else
-                    {
-                        j++;
-                    }
                 }
             }
         }
@@ -428,56 +398,6 @@ int isKeyPressed()
 
     // Use select to check if input is ready
     return select(STDIN_FILENO + 1, &readfds, NULL, NULL, &tv) > 0;
-}
-
-int32_t *readColumnAsUint32(const char *filename, size_t *countOut)
-{
-    FILE *file = fopen(filename, "r");
-    if (!file)
-    {
-        perror("Error opening file");
-        return NULL;
-    }
-
-    size_t capacity = 0;
-    size_t count = 0;
-    int32_t *array = NULL;
-    char line[256];
-
-    while (fgets(line, sizeof(line), file))
-    {
-        char *token = strtok(line, ",");
-        if (token)
-        {
-            // Remove trailing newline
-            token[strcspn(token, "\r\n")] = '\0';
-            // Convert the token to int32_t (hex)
-            int32_t value = (int32_t)strtoul(token, NULL, 16);
-
-            // Resize array if needed
-            if (count >= capacity)
-            {
-                size_t newCap = capacity ? capacity * 2 : 8;
-                int32_t *temp = realloc(array, newCap * sizeof(int32_t));
-                if (!temp)
-                {
-                    perror("Memory error");
-                    free(array);
-                    fclose(file);
-                    return NULL;
-                }
-                array = temp;
-                capacity = newCap;
-            }
-
-            array[count++] = value;
-        }
-    }
-
-    fclose(file);
-    if (countOut)
-        *countOut = count;
-    return array;
 }
 
 int i2c_write_reg(const char *i2cDev, int deviceAddr, uint8_t reg, uint8_t value)
